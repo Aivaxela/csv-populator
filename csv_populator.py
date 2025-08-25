@@ -2,30 +2,39 @@ import tkinter as tk
 from tkinter import ttk
 import json
 import os
+import re
+from datetime import datetime
 
 class CSVPopulatorApp:
     """CSV data entry application with dynamic field creation, ID management, and template support."""
     
     def __init__(self, root):
         self.root = root
-        self.setup_window()
-        self.setup_main_frame()
-        self.create_id_config_section()
-        self.create_fields_section()
-        self.create_preview_section()
-        self.create_buttons_section()
-        self.create_status_section()
-        self.initialize_data()
-        self.bind_events()
+        self.field_pairs = []
+        self.all_records = []
+        
+        self._setup_ui()
+        self._initialize_data()
+        self._bind_events()
     
-    def setup_window(self):
+    def _setup_ui(self):
+        """Initialize all UI components."""
+        self._setup_window()
+        self._setup_main_frame()
+        self._create_id_config_section()
+        self._create_fields_section()
+        self._create_preview_section()
+        self._create_buttons_section()
+        self._create_status_section()
+    
+    def _setup_window(self):
         """Configure main window properties."""
         self.root.title("CSV Populator")
-        self.root.geometry("620x650")
+        self.root.geometry("620x700")
         self.root.resizable(False, True)
         self.root.configure(bg='#f0f0f0')
     
-    def setup_main_frame(self):
+    def _setup_main_frame(self):
         """Create and configure main application frame."""
         self.main_frame = ttk.Frame(self.root, padding="10")
         self.main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -34,48 +43,82 @@ class CSVPopulatorApp:
         self.root.rowconfigure(0, weight=1)
         self.main_frame.columnconfigure(0, weight=1)
     
-    def create_id_config_section(self):
+    def _create_id_config_section(self):
         """Create ID configuration section with name, number, and current ID display."""
         self.id_config_frame = ttk.Frame(self.main_frame)
         self.id_config_frame.grid(row=2, column=0, sticky=(tk.W, tk.E))
         self.id_config_frame.columnconfigure(1, weight=1)
         self.id_config_frame.columnconfigure(3, weight=1)
         
-        self.starting_id_name_label = ttk.Label(self.id_config_frame, text="Starting ID Name:", font=("Arial", 10, "bold"))
+        # ID Name configuration
+        self.starting_id_name_label = ttk.Label(
+            self.id_config_frame, 
+            text="Starting ID Name:", 
+            font=("Arial", 10, "bold")
+        )
         self.starting_id_name_label.grid(row=0, column=0, padx=(0, 10), sticky=tk.W)
         
         self.starting_id_name_entry = ttk.Entry(self.id_config_frame, width=15)
         self.starting_id_name_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 20))
-        self.starting_id_name_entry.bind('<KeyRelease>', self.update_current_id_display)
+        self.starting_id_name_entry.bind('<KeyRelease>', self._update_current_id_display)
         
-        self.starting_id_number_label = ttk.Label(self.id_config_frame, text="Starting ID Number:", font=("Arial", 10, "bold"))
+        # ID Number configuration
+        self.starting_id_number_label = ttk.Label(
+            self.id_config_frame, 
+            text="Starting ID Number:", 
+            font=("Arial", 10, "bold")
+        )
         self.starting_id_number_label.grid(row=0, column=2, padx=(0, 10), sticky=tk.W)
         
         self.starting_id_number_entry = ttk.Entry(self.id_config_frame, width=15)
         self.starting_id_number_entry.grid(row=0, column=3, sticky=(tk.W, tk.E), padx=(0, 20))
-        self.starting_id_number_entry.bind('<KeyRelease>', self.update_current_id_display)
+        self.starting_id_number_entry.bind('<KeyRelease>', self._update_current_id_display)
         
-        self.current_id_label = ttk.Label(self.id_config_frame, text="Current ID: ", font=("Arial", 10, "bold"), foreground="gray")
+        # Current ID display
+        self.current_id_label = ttk.Label(
+            self.id_config_frame, 
+            text="Current ID: ", 
+            font=("Arial", 10, "bold"), 
+            foreground="gray"
+        )
         self.current_id_label.grid(row=1, column=0, columnspan=4, pady=(0, 10), sticky=tk.W)
         
-        self.filename_label = ttk.Label(self.id_config_frame, text="Output Filename:", font=("Arial", 10, "bold"))
+        # Output file configuration
+        self.filename_label = ttk.Label(
+            self.id_config_frame, 
+            text="Output File Path:", 
+            font=("Arial", 10, "bold")
+        )
         self.filename_label.grid(row=2, column=0, padx=(0, 10), sticky=tk.W)
         
-        self.filename_entry = ttk.Entry(self.id_config_frame, width=25)
+        self.filename_entry = ttk.Entry(self.id_config_frame, width=35)
         self.filename_entry.grid(row=2, column=1, columnspan=3, sticky=(tk.W, tk.E), padx=(0, 20), pady=(0, 10))
-        self.filename_entry.insert(0, "output.csv")
+        
+        # Help text
+        help_text = "Enter full path or just filename (will save to Desktop)"
+        self.filename_help = ttk.Label(
+            self.id_config_frame, 
+            text=help_text, 
+            font=("Arial", 8), 
+            foreground="gray"
+        )
+        self.filename_help.grid(row=3, column=0, columnspan=4, sticky=tk.W, pady=(0, 10))
+        
+        # Set default filename
+        default_filename = os.path.join(self._get_desktop_path(), "output.csv")
+        self.filename_entry.insert(0, default_filename)
     
-    def create_fields_section(self):
+    def _create_fields_section(self):
         """Create scrollable fields section with headers and initial field pair."""
         self.fields_frame = ttk.Frame(self.main_frame)
-        self.fields_frame.grid(row=3, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.fields_frame.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.fields_frame.columnconfigure(1, weight=1)
         self.fields_frame.columnconfigure(3, weight=1)
         
-        self.setup_scrollable_canvas()
-        self.create_field_headers()
+        self._setup_scrollable_canvas()
+        self._create_field_headers()
     
-    def setup_scrollable_canvas(self):
+    def _setup_scrollable_canvas(self):
         """Setup canvas and scrollbar for dynamic field content."""
         self.canvas = tk.Canvas(self.fields_frame)
         self.scrollbar = ttk.Scrollbar(self.fields_frame, orient="vertical", command=self.canvas.yview)
@@ -98,46 +141,62 @@ class CSVPopulatorApp:
         self.fields_frame.columnconfigure(0, weight=1)
         self.fields_frame.rowconfigure(1, weight=1)
         
+        # Bind mouse wheel events
         self.canvas.bind("<MouseWheel>", self._on_mousewheel)
         self.canvas.bind("<Button-4>", self._on_mousewheel)
         self.canvas.bind("<Button-5>", self._on_mousewheel)
     
-    def create_field_headers(self):
+    def _create_field_headers(self):
         """Create field name and value headers."""
         self.field_header = ttk.Label(
             self.fields_frame,
             text="Field Name:",
             font=("Arial", 10, "bold")
         )
-        self.field_header.grid(row=0, column=0, columnspan=2, sticky=tk.W, padx=(0, 0))
+        self.field_header.grid(row=0, column=0, columnspan=2, sticky=tk.W)
         
         self.value_header = ttk.Label(
             self.fields_frame,
             text="Value:",
             font=("Arial", 10, "bold")
         )
-        self.value_header.grid(row=0, column=2, columnspan=2, sticky=tk.W, padx=(0, 0))
+        self.value_header.grid(row=0, column=2, columnspan=2, sticky=tk.W)
     
-    def create_preview_section(self):
+    def _create_preview_section(self):
         """Create CSV preview section with scrollable text display."""
         self.preview_frame = ttk.Frame(self.main_frame)
-        self.preview_frame.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.preview_frame.grid(row=5, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.preview_frame.columnconfigure(0, weight=1)
         self.preview_frame.rowconfigure(1, weight=1)
         
-        self.preview_label = ttk.Label(self.preview_frame, text="Preview:", font=("Arial", 10, "bold"))
+        self.preview_label = ttk.Label(
+            self.preview_frame, 
+            text="Preview:", 
+            font=("Arial", 10, "bold")
+        )
         self.preview_label.grid(row=0, column=0, sticky=tk.W)
         
         self.preview_canvas = tk.Canvas(self.preview_frame, height=150)
-        self.preview_scrollbar = ttk.Scrollbar(self.preview_frame, orient="vertical", command=self.preview_canvas.yview)
-        self.preview_text = tk.Text(self.preview_canvas, wrap=tk.NONE, height=8, state=tk.DISABLED)
+        self.preview_scrollbar = ttk.Scrollbar(
+            self.preview_frame, 
+            orient="vertical", 
+            command=self.preview_canvas.yview
+        )
+        self.preview_text = tk.Text(
+            self.preview_canvas, 
+            wrap=tk.NONE, 
+            height=8, 
+            state=tk.DISABLED
+        )
         
         self.preview_text.configure(yscrollcommand=self.preview_scrollbar.set)
-        
         self.preview_canvas.create_window((0, 0), window=self.preview_text, anchor="nw")
         self.preview_canvas.configure(yscrollcommand=self.preview_scrollbar.set)
         
-        self.preview_text.bind('<Configure>', lambda e: self.preview_canvas.configure(scrollregion=self.preview_canvas.bbox("all")))
+        self.preview_text.bind(
+            '<Configure>', 
+            lambda e: self.preview_canvas.configure(scrollregion=self.preview_canvas.bbox("all"))
+        )
         
         self.preview_canvas.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.preview_scrollbar.grid(row=1, column=1, sticky=(tk.N, tk.S))
@@ -145,84 +204,62 @@ class CSVPopulatorApp:
         self.preview_frame.columnconfigure(0, weight=1)
         self.preview_frame.rowconfigure(1, weight=1)
     
-    def create_buttons_section(self):
+    def _create_buttons_section(self):
         """Create button section with all application controls."""
         self.buttons_frame = ttk.Frame(self.main_frame)
-        self.buttons_frame.grid(row=5, column=0)
+        self.buttons_frame.grid(row=6, column=0)
         
-        self.save_button = ttk.Button(
-            self.buttons_frame, 
-            text="Save to CSV", 
-            command=self.save_to_csv
-        )
-        self.save_button.pack(side=tk.LEFT, padx=(0, 10))
+        buttons = [
+            ("Save to CSV", self._save_to_csv),
+            ("Load Template", self._load_template),
+            ("Save Template", self._save_template),
+            ("New ID (Ctrl+Shift+N)", self._new_id),
+            ("Clear All", self._clear_all_fields)
+        ]
         
-        self.load_template_button = ttk.Button(
-            self.buttons_frame, 
-            text="Load Template", 
-            command=self.load_template
-        )
-        self.load_template_button.pack(side=tk.LEFT, padx=(0, 10))
-        
-        self.save_template_button = ttk.Button(
-            self.buttons_frame, 
-            text="Save Template", 
-            command=self.save_template
-        )
-        self.save_template_button.pack(side=tk.LEFT, padx=(0, 10))
-        
-        self.new_id_button = ttk.Button(
-            self.buttons_frame, 
-            text="New ID (Ctrl+Shift+N)", 
-            command=self.new_id
-        )
-        self.new_id_button.pack(side=tk.LEFT, padx=(0, 10))
-        
-        self.clear_button = ttk.Button(
-            self.buttons_frame, 
-            text="Clear All", 
-            command=self.clear_all_fields
-        )
-        self.clear_button.pack(side=tk.LEFT)
+        for i, (text, command) in enumerate(buttons):
+            btn = ttk.Button(self.buttons_frame, text=text, command=command)
+            if i < len(buttons) - 1:
+                btn.pack(side=tk.LEFT, padx=(0, 10))
+            else:
+                btn.pack(side=tk.LEFT)
     
-    def create_status_section(self):
+    def _create_status_section(self):
         """Create status label for user feedback."""
         self.status_label = ttk.Label(
             self.main_frame, 
             text="Ready", 
             font=("Arial", 9)
         )
-        self.status_label.grid(row=6, column=0)
+        self.status_label.grid(row=7, column=0)
     
-    def initialize_data(self):
+    def _initialize_data(self):
         """Initialize application data and create first field pair."""
-        self.field_pairs = []
-        self.all_records = []
-        
-        self.create_field_pair()
-        
-        self.update_current_id_display()
-        self.update_csv_preview()
-        
+        self._create_field_pair()
+        self._update_current_id_display()
+        self._update_csv_preview()
         self.starting_id_name_entry.focus_set()
     
-    def bind_events(self):
+    def _bind_events(self):
         """Bind keyboard shortcuts and events."""
-        self.root.bind('<Tab>', self.handle_tab)
-        self.root.bind('<Control-Shift-N>', self.new_id)
-        
-        self.main_frame.rowconfigure(3, weight=1)
+        self.root.bind('<Tab>', self._handle_tab)
+        self.root.bind('<Control-Shift-N>', self._new_id)
+        self.main_frame.rowconfigure(4, weight=1)
     
-    def get_current_id(self):
+    def _get_desktop_path(self):
+        """Get the user's desktop path with fallback."""
+        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        return desktop if os.path.exists(desktop) else os.getcwd()
+    
+    def _get_current_id(self):
+        """Get the current ID number from the entry field."""
         id_text = self.starting_id_number_entry.get().strip()
-        if id_text:
-            return id_text
-        else:
-            return None
+        return id_text if id_text else None
     
-    def update_current_id_display(self, event=None):
+    def _update_current_id_display(self, event=None):
+        """Update the current ID display label."""
         id_name = self.starting_id_name_entry.get().strip()
-        current_id = self.get_current_id()
+        current_id = self._get_current_id()
         
         if id_name and current_id is not None:
             self.current_id_label.config(text=f"Current ID: {current_id}")
@@ -233,23 +270,20 @@ class CSVPopulatorApp:
         else:
             self.current_id_label.config(text="Current ID: (not configured)")
     
-    def increment_id(self, current_id):
+    def _increment_id(self, current_id):
         """Increment alphanumeric ID by extracting numeric part and adding 1."""
         if not current_id:
             return None
         
-        import re
-        
-        # Pattern: letters (optional) + numbers (required)
         match = re.match(r'^([A-Za-z]*)(\d+)$', current_id)
         if match:
             prefix = match.group(1)
             number = int(match.group(2))
             return f"{prefix}{number + 1}"
-        else:
-            return current_id
+        return current_id
     
-    def update_csv_preview(self):
+    def _update_csv_preview(self):
+        """Update the CSV preview text display."""
         self.preview_text.config(state=tk.NORMAL)
         self.preview_text.delete(1.0, tk.END)
         
@@ -266,7 +300,8 @@ class CSVPopulatorApp:
         self.preview_text.config(state=tk.DISABLED)
         self.preview_text.see(tk.END)
     
-    def create_field_pair(self):
+    def _create_field_pair(self):
+        """Create a new field name/value pair row."""
         row = len(self.field_pairs) + 1
         
         pair_frame = ttk.Frame(self.scrollable_frame)
@@ -277,7 +312,7 @@ class CSVPopulatorApp:
         pair_frame.columnconfigure(3, weight=1)
         pair_frame.columnconfigure(4, weight=0)
         
-        row_label = ttk.Label(pair_frame, text=f"Pair {row}:")
+        row_label = ttk.Label(pair_frame, text=f"Row {row}:")
         row_label.grid(row=0, column=0, padx=(0, 10), sticky=tk.W)
         
         field_entry = ttk.Entry(pair_frame, width=30)
@@ -291,7 +326,7 @@ class CSVPopulatorApp:
             pair_frame, 
             text="×", 
             width=3,
-            command=lambda idx=current_index: self.delete_field_pair(idx)
+            command=lambda idx=current_index: self._delete_field_pair(idx)
         )
         delete_btn.grid(row=0, column=4, padx=(10, 0))
         
@@ -305,19 +340,20 @@ class CSVPopulatorApp:
         
         self.field_pairs.append(pair_data)
         
-        field_entry.bind('<Tab>', self.handle_tab)
-        field_entry.bind('<Return>', self.handle_enter)
-        value_entry.bind('<Tab>', self.handle_tab)
-        value_entry.bind('<Return>', self.handle_enter)
+        # Bind events
+        field_entry.bind('<Tab>', self._handle_tab)
+        field_entry.bind('<Return>', self._handle_enter)
+        value_entry.bind('<Tab>', self._handle_tab)
+        value_entry.bind('<Return>', self._handle_enter)
         
+        # Update scroll region and scroll to bottom
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        
         self.canvas.update_idletasks()
         self.root.after(10, lambda: self.canvas.yview_moveto(1.0))
         
         return field_entry, value_entry
     
-    def handle_tab(self, event):
+    def _handle_tab(self, event):
         """Handle TAB navigation with smart field skipping and new row creation."""
         current_widget = event.widget
         
@@ -337,11 +373,9 @@ class CSVPopulatorApp:
         if current_pair_index is not None:
             if is_field_entry:
                 if self.field_pairs[current_pair_index]['field_entry'].get().strip():
-                    next_field = self.find_next_empty_field(current_pair_index, is_field_entry)
+                    next_field = self._find_next_empty_field(current_pair_index, is_field_entry)
                     if next_field:
                         next_field.focus_set()
-                        return "break"
-                    else:
                         return "break"
                 else:
                     self.field_pairs[current_pair_index]['value_entry'].focus_set()
@@ -349,22 +383,20 @@ class CSVPopulatorApp:
             else:
                 if self.field_pairs[current_pair_index]['value_entry'].get().strip():
                     if current_pair_index == len(self.field_pairs) - 1:
-                        new_field, new_value = self.create_field_pair()
+                        new_field, new_value = self._create_field_pair()
                         new_field.focus_set()
-                        self.update_row_labels()
+                        self._update_row_labels()
                         return "break"
                     else:
-                        next_field = self.find_next_empty_field(current_pair_index, is_field_entry)
+                        next_field = self._find_next_empty_field(current_pair_index, is_field_entry)
                         if next_field:
                             next_field.focus_set()
                             return "break"
-                        else:
-                            return "break"
                 else:
                     if current_pair_index == len(self.field_pairs) - 1:
-                        new_field, new_value = self.create_field_pair()
+                        new_field, new_value = self._create_field_pair()
                         new_field.focus_set()
-                        self.update_row_labels()
+                        self._update_row_labels()
                         return "break"
                     else:
                         next_pair_index = current_pair_index + 1
@@ -373,7 +405,8 @@ class CSVPopulatorApp:
         
         return None
     
-    def find_topmost_empty_field(self):
+    def _find_topmost_empty_field(self):
+        """Find the first empty field from the top."""
         for pair in self.field_pairs:
             if not pair['field_entry'].get().strip():
                 return pair['field_entry']
@@ -381,7 +414,7 @@ class CSVPopulatorApp:
                 return pair['value_entry']
         return None
     
-    def find_next_empty_field(self, current_pair_index, is_field_entry):
+    def _find_next_empty_field(self, current_pair_index, is_field_entry):
         """Find next empty field while preventing infinite loops."""
         visited = set()
         current_index = current_pair_index
@@ -405,33 +438,34 @@ class CSVPopulatorApp:
                     current_index += 1
                     current_is_field = True
             
-            # Prevent infinite loops by tracking visited positions
             visited_key = (current_index, current_is_field)
             if visited_key in visited:
                 return None
             visited.add(visited_key)
     
-    def handle_enter(self, event):
-        return self.handle_tab(event)
+    def _handle_enter(self, event):
+        """Handle Enter key same as Tab."""
+        return self._handle_tab(event)
     
-    def delete_field_pair(self, index):
+    def _delete_field_pair(self, index):
+        """Delete a field pair at the specified index."""
         if len(self.field_pairs) <= 1:
             return
         
         self.field_pairs[index]['frame'].destroy()
-        
         del self.field_pairs[index]
         
-        self.update_row_labels()
+        self._update_row_labels()
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        
         self.status_label.config(text=f"Deleted row {index + 1}")
     
-    def update_row_labels(self):
+    def _update_row_labels(self):
+        """Update row labels after deletion."""
         for i, pair in enumerate(self.field_pairs):
             pair['row_label'].config(text=f"Row {i + 1}:")
     
     def _on_mousewheel(self, event):
+        """Handle mouse wheel scrolling."""
         if event.num == 4:
             self.canvas.yview_scroll(-1, "units")
         elif event.num == 5:
@@ -439,12 +473,13 @@ class CSVPopulatorApp:
         else:
             self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
     
-    def save_current_record(self):
+    def _save_current_record(self):
+        """Save the current form data as a record."""
         field_names = []
         values = []
         
         id_name = self.starting_id_name_entry.get().strip()
-        current_id = self.get_current_id()
+        current_id = self._get_current_id()
         
         if id_name and current_id is not None:
             field_names.append(id_name)
@@ -464,19 +499,20 @@ class CSVPopulatorApp:
                 'values': values
             }
             self.all_records.append(record)
-            self.update_csv_preview()
+            self._update_csv_preview()
     
-    def new_id(self, event=None):
+    def _new_id(self, event=None):
+        """Create a new ID and save the current record."""
         id_name = self.starting_id_name_entry.get().strip()
-        current_id = self.get_current_id()
+        current_id = self._get_current_id()
         
         if not id_name or current_id is None:
             self.status_label.config(text="Please configure both ID name and number first")
             return
         
-        self.save_current_record()
+        self._save_current_record()
         
-        new_id = self.increment_id(current_id)
+        new_id = self._increment_id(current_id)
         
         if new_id:
             self.starting_id_number_entry.delete(0, tk.END)
@@ -485,21 +521,24 @@ class CSVPopulatorApp:
             self.status_label.config(text="Could not increment ID format")
             return
         
+        # Clear value fields
         for pair in self.field_pairs:
             pair['value_entry'].delete(0, tk.END)
         
+        # Focus on first empty field
         if self.field_pairs:
-            topmost_empty = self.find_topmost_empty_field()
+            topmost_empty = self._find_topmost_empty_field()
             if topmost_empty:
                 topmost_empty.focus_set()
             else:
                 self.field_pairs[0]['field_entry'].focus_set()
         
-        self.update_current_id_display()
+        self._update_current_id_display()
         self.status_label.config(text=f"New ID created: {new_id} - {len(self.all_records)} records saved")
     
-    def save_to_csv(self):
-        self.save_current_record()
+    def _save_to_csv(self):
+        """Save all records to a CSV file."""
+        self._save_current_record()
         
         if not self.all_records:
             self.status_label.config(text="No records to save")
@@ -507,7 +546,6 @@ class CSVPopulatorApp:
         
         try:
             csv_content = ""
-            total_fields = 0
             
             for record in self.all_records:
                 field_names = record['field_names']
@@ -515,21 +553,28 @@ class CSVPopulatorApp:
                 
                 csv_content += ','.join(field_name for field_name in field_names) + '\n'
                 csv_content += ','.join(value for value in values) + '\n'
-                
-                total_fields = len(field_names)
             
             filename = self.filename_entry.get().strip()
             if not filename:
-                filename = "output.csv"
+                filename = os.path.join(self._get_desktop_path(), "output.csv")
+            elif not os.path.dirname(filename):
+                filename = os.path.join(self._get_desktop_path(), filename)
+            
+            # Ensure the directory exists
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
             
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write(csv_content)
             
-            self.status_label.config(text=f"Saved {len(self.all_records)} records to {filename}")
+            # Show full path in status
+            abs_path = os.path.abspath(filename)
+            self.status_label.config(text=f"Saved {len(self.all_records)} records to: {abs_path}")
+            
         except Exception as e:
             self.status_label.config(text=f"Error saving: {str(e)}")
     
-    def load_template(self):
+    def _load_template(self):
+        """Load a template file and populate fields."""
         try:
             from tkinter import filedialog
             
@@ -544,15 +589,16 @@ class CSVPopulatorApp:
             if not filename:
                 return
             
+            # Clear existing fields
             for pair in self.field_pairs:
                 pair['frame'].destroy()
             self.field_pairs.clear()
             
             self.all_records.clear()
-            self.update_csv_preview()
-            
+            self._update_csv_preview()
             self.fields_frame.update_idletasks()
             
+            # Load template data
             try:
                 with open(filename, 'r', encoding='utf-8') as f:
                     template_data = json.load(f)
@@ -574,13 +620,13 @@ class CSVPopulatorApp:
                 self.status_label.config(text="No valid field names found in template")
                 return
             
+            # Create fields from template
             for field_name in field_names:
                 if field_name:
-                    new_field, new_value = self.create_field_pair()
+                    new_field, new_value = self._create_field_pair()
                     new_field.insert(0, field_name)
             
-            self.update_row_labels()
-            
+            self._update_row_labels()
             self.fields_frame.update_idletasks()
             self.canvas.configure(scrollregion=self.canvas.bbox("all"))
             
@@ -592,7 +638,8 @@ class CSVPopulatorApp:
         except Exception as e:
             self.status_label.config(text=f"Error loading template: {str(e)}")
     
-    def save_template(self):
+    def _save_template(self):
+        """Save current field names as a template file."""
         try:
             from tkinter import filedialog
             
@@ -620,7 +667,7 @@ class CSVPopulatorApp:
             
             template_data = {
                 "fields": field_names,
-                "description": f"Template created on {__import__('datetime').datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                "description": f"Template created on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                 "field_count": len(field_names)
             }
             
@@ -632,23 +679,31 @@ class CSVPopulatorApp:
         except Exception as e:
             self.status_label.config(text=f"Error saving template: {str(e)}")
     
-    def clear_all_fields(self):
+    def _clear_all_fields(self):
+        """Clear all field entries and reset to initial state."""
         for pair in self.field_pairs:
             pair['field_entry'].delete(0, tk.END)
             pair['value_entry'].delete(0, tk.END)
         
         while len(self.field_pairs) > 1:
-            self.delete_field_pair(len(self.field_pairs) - 1)
+            self._delete_field_pair(len(self.field_pairs) - 1)
         
         self.all_records.clear()
-        self.update_csv_preview()
+        self._update_csv_preview()
+        
+        # Reset filename to desktop path
+        self.filename_entry.delete(0, tk.END)
+        default_filename = os.path.join(self._get_desktop_path(), "output.csv")
+        self.filename_entry.insert(0, default_filename)
         
         if self.field_pairs:
             self.field_pairs[0]['field_entry'].focus_set()
         
         self.status_label.config(text="All fields cleared")
 
+
 def main():
+    """Main application entry point."""
     root = tk.Tk()
     app = CSVPopulatorApp(root)
     
@@ -658,6 +713,7 @@ def main():
         pass
     
     root.mainloop()
+
 
 if __name__ == "__main__":
     main()
