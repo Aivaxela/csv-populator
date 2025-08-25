@@ -1,0 +1,13 @@
+{
+  "fields": [
+    "First Name",
+    "Last Name",
+    "Email",
+    "Phone",
+    "Company",
+    "Job Title",
+    "Department"
+  ],
+  "description": "Contact information template",
+  "field_count": 7
+}

@@ -1,0 +1,6 @@
+# CSV Populator Application Dependencies
+# No external packages required - uses only Python standard library
+
+# Python 3.6+ required for f-strings and other modern features
+# tkinter is included with Python installation
+# No additional pip installs needed

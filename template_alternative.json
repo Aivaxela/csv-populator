@@ -1,0 +1,14 @@
+{
+  "fields": [
+    "Project Name",
+    "Project Manager",
+    "Start Date",
+    "End Date",
+    "Budget",
+    "Status",
+    "Priority",
+    "Description"
+  ],
+  "description": "Project management template",
+  "field_count": 8
+}
