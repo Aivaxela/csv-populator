@@ -22,7 +22,7 @@ class CSVPopulatorApp:
         """Configure main window properties."""
         self.root.title("CSV Populator")
         self.root.geometry("620x650")
-        self.root.resizable(False, False)
+        self.root.resizable(False, True)
         self.root.configure(bg='#f0f0f0')
     
     def setup_main_frame(self):
@@ -57,6 +57,13 @@ class CSVPopulatorApp:
         
         self.current_id_label = ttk.Label(self.id_config_frame, text="Current ID: ", font=("Arial", 10, "bold"), foreground="gray")
         self.current_id_label.grid(row=1, column=0, columnspan=4, pady=(0, 10), sticky=tk.W)
+        
+        self.filename_label = ttk.Label(self.id_config_frame, text="Output Filename:", font=("Arial", 10, "bold"))
+        self.filename_label.grid(row=2, column=0, padx=(0, 10), sticky=tk.W)
+        
+        self.filename_entry = ttk.Entry(self.id_config_frame, width=25)
+        self.filename_entry.grid(row=2, column=1, columnspan=3, sticky=(tk.W, tk.E), padx=(0, 20), pady=(0, 10))
+        self.filename_entry.insert(0, "output.csv")
     
     def create_fields_section(self):
         """Create scrollable fields section with headers and initial field pair."""
@@ -511,7 +518,10 @@ class CSVPopulatorApp:
                 
                 total_fields = len(field_names)
             
-            filename = "csv_populator_output.csv"
+            filename = self.filename_entry.get().strip()
+            if not filename:
+                filename = "output.csv"
+            
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write(csv_content)
             
