@@ -1,6 +1,6 @@
 # CSV Populator
 
-A Windows application for efficient CSV data entry with dynamic field creation, ID management, and template support.
+A Windows application for efficient CSV data entry with dynamic field creation, ID management, and template support. Code generated almost entirely by Cursor AI.
 
 ## Features
 
